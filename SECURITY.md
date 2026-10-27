@@ -46,8 +46,12 @@ endpoints, findings, and any custom headers you configured.
 
 - The database is **not encrypted**. Protect it with filesystem permissions,
   full-disk encryption, or both.
-- Exported reports (JSON, Markdown, HTML, PDF) contain the same information.
-  Treat them as sensitive.
+- Exported reports (JSON, Markdown, HTML, PDF) contain the same information,
+  including findings, evidence, and remediation. Treat them as sensitive.
+- PDF exports are visibly marked `CONFIDENTIAL` and include an authorized-use
+  disclosure. This is a handling instruction, not encryption.
+- Export filenames include the target hostname and scan ID, for example
+  `lab.local_8443-scan-7.pdf`.
 - Custom request headers may contain credentials or API tokens. They are
   stored as part of the target configuration.
 

@@ -156,6 +156,17 @@ Update triage state. `is_false_positive` and `triage_status` are kept in sync.
 
 ### Reports
 
+All export responses set `Content-Disposition` to a target-based filename:
+
+```
+<host>[_port]-scan-<id>.<ext>
+```
+
+For example, `lab.local_8443-scan-7.pdf`. Every format includes findings with
+severity, title, location, description, evidence, remediation, and triage
+status; JSON also includes finding IDs and metadata. PDFs additionally carry
+confidentiality markings and an authorized-use disclosure.
+
 #### GET /reports/{id}
 Get full report.
 
@@ -164,20 +175,27 @@ Get full report.
 #### GET /reports/{id}/export/json
 Export as JSON.
 
+The response is the `FullReport` object plus a top-level `findings` array of
+[`Finding`](#finding) objects.
+
 **Response:** JSON file download
 
 #### GET /reports/{id}/export/markdown
-Export as Markdown.
+Export as Markdown, including findings and fenced evidence blocks.
 
 **Response:** MD file download
 
 #### GET /reports/{id}/export/html
-Export as HTML.
+Export as a self-contained HTML file, including findings and escaped evidence.
+All target-controlled values are escaped and the response sets a restrictive
+CSP.
 
-**Response:** HTML file download (all target-controlled values escaped)
+**Response:** HTML file download
 
 #### GET /reports/{id}/export/pdf
-Export as a formatted PDF.
+Export as a formatted PDF, including the header/risk/summary tables, findings
+with evidence and remediation, a `CONFIDENTIAL` cover banner, per-page footer
+markers, and a closing authorized-use disclosure.
 
 **Response:** PDF file download
 
@@ -211,6 +229,27 @@ Export as a formatted PDF.
   evasion_enabled: boolean
   request_delay: number | null
   enable_external_lookups: boolean
+  created_at: datetime
+}
+```
+
+### Finding
+```typescript
+{
+  id: number
+  key: string
+  type: string
+  severity: "critical" | "high" | "medium" | "low" | "info"
+  title: string
+  description: string
+  location: string | null
+  evidence: string
+  remediation: string
+  metadata: Record<string, unknown>
+  is_false_positive: boolean
+  triage_status: "open" | "acknowledged" | "false_positive"
+  triage_note: string | null
+  triaged_at: datetime | null
   created_at: datetime
 }
 ```

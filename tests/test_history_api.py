@@ -183,6 +183,10 @@ def test_exports_are_named_after_target_and_include_findings(client):
     json_export = client.get(f"/api/reports/{first_id}/export/json")
     assert json_export.status_code == 200
     assert f'filename="{base}.json"' in json_export.headers["content-disposition"]
+    json_findings = json_export.json()["findings"]
+    assert len(json_findings) == 2
+    assert json_findings[0]["title"] == "Missing Security Header: X-Frame-Options"
+    assert "Server: nginx/1.24.0" in json_findings[0]["evidence"]
 
     markdown_export = client.get(f"/api/reports/{first_id}/export/markdown")
     assert markdown_export.status_code == 200

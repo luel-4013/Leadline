@@ -159,7 +159,9 @@ headers, banners, findings, and triage state. Custom request headers are
 stored as part of the target configuration and may contain credentials.
 
 Reports (JSON, Markdown, HTML, PDF) contain the same information and are
-written wherever the operator saves them.
+written wherever the operator saves them. PDFs are visibly marked
+`CONFIDENTIAL`; other formats are not, and the marking does not change the
+underlying file protection. Export filenames include the target hostname.
 
 **Mitigations**
 
@@ -173,7 +175,9 @@ written wherever the operator saves them.
 - Anyone with filesystem access can read the database and exports.
 - Secrets placed in custom headers remain in the database until the target is
   deleted; deleting a scan does not remove target-level headers.
-- No encryption, key management, or secure deletion.
+- No encryption, key management, or secure deletion. A `CONFIDENTIAL` PDF
+  banner does not prevent copying or indexing, and target-based filenames can
+  disclose the assessed hostname.
 
 ### 6.5 External lookups (T9)
 

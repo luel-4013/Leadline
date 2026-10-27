@@ -13,6 +13,7 @@ from html import escape as html_escape
 from urllib.parse import urlsplit
 
 from app.db import get_db
+from app.history import serialize_finding
 from app.models import Scan, Target, ScanEvent, Finding, GraphNode
 from app.schemas import ReportSummary, ReportHighlights, FullReport, ReportPhaseResult
 from app.pdf_export import generate_report_pdf
@@ -285,10 +286,14 @@ async def get_report(scan_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/{scan_id}/export/json")
 async def export_json(scan_id: int, db: AsyncSession = Depends(get_db)):
-    """Export report as JSON."""
+    """Export report as JSON, including findings with evidence and triage."""
     report = await get_report(scan_id, db)
+    payload = json.loads(report.model_dump_json())
+    payload["findings"] = [
+        serialize_finding(finding) for finding in await _load_findings(scan_id, db)
+    ]
     return JSONResponse(
-        content=json.loads(report.model_dump_json()),
+        content=payload,
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{_export_filename(report.target_url, scan_id, "json")}"'

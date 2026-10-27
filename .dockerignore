@@ -1,0 +1,25 @@
+# The backend image only needs app/ and requirements.txt.
+.git
+.github
+.gitignore
+.dockerignore
+.pytest_cache
+.mypy_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.log
+.env
+.env.*
+venv
+.venv
+node_modules
+ui
+tests
+docs
+*.md
+docker-compose.yml

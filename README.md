@@ -32,7 +32,10 @@ context. Leadline is built around a different question:
 - Native collectors cover DNS, WHOIS, TLS, ports, HTTP, technology, JavaScript,
   parameters, APIs, and security headers.
 - Everything is local: SQLite, no account, no cloud, no telemetry.
-- Reports are evidence-oriented: JSON, Markdown, HTML, and PDF.
+- Reports are evidence-oriented: JSON, Markdown, HTML, and PDF all include
+  findings, evidence, remediation, and triage state.
+- Export files are named after the target and scan ID, and PDFs carry
+  confidentiality markings plus an authorized-use disclosure.
 
 The long-term direction is a lightweight local alternative to heavy recon
 platforms: less setup than reNgine, more memory than reconFTW, and no need to
@@ -133,8 +136,13 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000`.
 2. Open the target to see its history.
 3. Start a scan under **Scans**.
 4. Watch the phase progress.
-5. Open the report for findings, highlights, and exports.
+5. Open the report for findings, evidence, highlights, and exports.
 6. Re-scan the target and use the history diff to see what changed.
+
+Reports download as `<host>[_port]-scan-<id>.<ext>`, for example
+`lab.local_8443-scan-7.pdf`, so a folder full of exports stays identifiable.
+The PDF also carries a confidentiality banner, a footer marker, and a closing
+authorized-use disclosure.
 
 You can also use the API:
 
@@ -150,8 +158,8 @@ curl -X POST http://127.0.0.1:8000/api/scans \
   -d '{"target_id": 1}'
 curl -X POST http://127.0.0.1:8000/api/scans/1/start
 
-# Export the report
-curl http://127.0.0.1:8000/api/reports/1/export/json
+# Export the report; -OJ uses the server-provided target-based filename
+curl -OJ http://127.0.0.1:8000/api/reports/1/export/pdf
 ```
 
 ## Development
@@ -208,8 +216,10 @@ Leadline/
 - **Header scoring is indicative.** A missing header is not automatically a
   vulnerability, and a present header is not automatically correct.
 - **Single-user SQLite.** No concurrency controls, RBAC, or multi-tenancy.
-- **History is local and unencrypted.** Keep until you delete it; protect the
-  database and exports accordingly.
+- **History is local and unencrypted.** Keep it until you delete it; protect the
+  database and exports accordingly. The PDF confidentiality banner is a
+  handling instruction, not encryption, and export filenames include the target
+  hostname.
 
 ## Roadmap
 

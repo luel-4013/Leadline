@@ -117,13 +117,17 @@ both compute the same score.
 
 | Format | Notes |
 |---|---|
-| JSON | Structured report plus phase data |
-| Markdown | Escaped, human-readable report |
+| JSON | Structured report, phase data, and serialized findings |
+| Markdown | Escaped, human-readable report with fenced evidence |
 | HTML | Escaped, self-contained, restrictive CSP |
-| PDF | ReportLab, escaped text |
+| PDF | ReportLab, escaped findings/evidence, confidentiality markings |
 
-All export formats contain target-controlled data and should be treated as
-sensitive.
+Findings in every format include severity, location, description, evidence,
+remediation, and triage state. Export filenames follow
+`<host>[_port]-scan-<id>.<ext>`; filenames are sanitized so target-controlled
+text cannot inject a path or header value. All export formats contain
+target-controlled data and should be treated as sensitive. The PDF's
+`CONFIDENTIAL` banner and footer are handling instructions, not encryption.
 
 ## Data flow
 
@@ -163,7 +167,8 @@ are marked failed on the next startup; they are not resumed.
 2. The router loads the scan, target, events, findings, and graph nodes.
 3. build_report_summary() computes counts and risk.
 4. build_report_highlights() extracts human-readable findings from phase data.
-5. Export routes serialize the report and escape target-controlled values.
+5. Export routes serialize the report and findings, escape target-controlled
+   values, and set a target-based download filename.
 ```
 
 ## Security boundaries

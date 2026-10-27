@@ -1,48 +1,75 @@
-# Compiled Python files
-*.pyc
+# Python bytecode and caches
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
 
-# Dependencies
+# Virtual environments
 .venv/
 venv/
-node_modules/
+env/
 
-# Build/dist directories
+# Node and frontend build output
+node_modules/
+.vite/
 dist/
 build/
 target/
 *.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Logs
 *.log
 
-# Environment files
+# Environment files and local secrets
 .env
 .env.*
 !.env.example
-
-# Editors/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+*.pem
+*.key
+*.p12
+*.pfx
+.secrets/
 
 # Local scan databases
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# Generated reports / local exports
+/exports/
+/reports/
+*.report.pdf
 
 # Coverage reports
 .coverage
+.coverage.*
 coverage/
+coverage.xml
 htmlcov/
 
-# Python cache
-.mypy_cache/
-.pytest_cache/
-
-# System files
+# Editors, backups, and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.tmp
+*.bak
+*.orig
+*.rej
 .DS_Store
 Thumbs.db

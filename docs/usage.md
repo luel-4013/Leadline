@@ -27,8 +27,10 @@
 
 4. **Read the report**
    - Open **Reports** or click **Report** on a completed scan.
-   - Review findings, raw phase data, and CVE correlations.
-   - Export as JSON, Markdown, HTML, or PDF.
+   - Review findings, evidence, remediation, raw phase data, and CVE
+     correlations.
+   - Export as JSON, Markdown, HTML, or PDF. All four formats include findings
+     and triage state; the PDF adds confidentiality markings.
 
 ### Via API
 
@@ -124,16 +126,32 @@ Leadline runs 12 phases:
 
 ## Exporting Data
 
-```bash
-curl http://localhost:8000/api/reports/1/export/json -o report.json
-curl http://localhost:8000/api/reports/1/export/markdown -o report.md
-curl http://localhost:8000/api/reports/1/export/html -o report.html
-curl http://localhost:8000/api/reports/1/export/pdf -o report.pdf
+Browser downloads use the target-based filename supplied in
+`Content-Disposition`:
+
+```
+<host>[_port]-scan-<id>.<ext>
 ```
 
-HTML exports escape target-controlled values and set a restrictive CSP. Treat
-all exports as sensitive: they contain the same data as the local database,
-including discovered endpoints and findings.
+Examples: `lab.local-scan-4.json`, `192.168.1.10_8443-scan-7.pdf`. The scan ID
+keeps repeat scans from colliding. With `curl`, `-OJ` uses that filename:
+
+```bash
+curl -OJ http://localhost:8000/api/reports/1/export/json
+curl -OJ http://localhost:8000/api/reports/1/export/markdown
+curl -OJ http://localhost:8000/api/reports/1/export/html
+curl -OJ http://localhost:8000/api/reports/1/export/pdf
+```
+
+JSON, Markdown, HTML, and PDF exports include each finding's severity, title,
+location, description, evidence, remediation, and triage state. HTML exports
+escape target-controlled values and set a restrictive CSP. PDF exports also
+include a `CONFIDENTIAL` cover banner, a marker in every footer, and a closing
+authorized-use disclosure.
+
+Treat all exports as sensitive: they contain the same data as the local
+database. The confidentiality banner is a handling instruction, not
+encryption, and the filename itself reveals the target hostname.
 
 ## Using the Attack Surface Graph
 

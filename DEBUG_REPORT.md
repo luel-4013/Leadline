@@ -34,7 +34,7 @@ Checked in the development environment on 2026-10-27:
   - report generation worked;
   - JSON, Markdown, HTML, and PDF exports worked;
   - exports were named after the target (`<host>[_port]-scan-<id>.<ext>`);
-  - Markdown, HTML, and PDF exports listed findings with evidence and
+  - JSON, Markdown, HTML, and PDF exports listed findings with evidence and
     remediation, and the PDF evidence boxes no longer overlap their labels;
   - PDF exports carry a cover confidentiality banner, a `CONFIDENTIAL` marker
     in every footer, and a closing authorized-use disclosure;
@@ -43,8 +43,15 @@ Checked in the development environment on 2026-10-27:
 
 Tests cover API basics, the Host-header allow-list, scan diffing, CPE version
 comparison and range matching, risk scoring/triage behavior, history/diff
-endpoints, triage updates, per-scan deletion, and the terminal-scan restart
-guard.
+endpoints, triage updates, export filenames/content, per-scan deletion, and the
+terminal-scan restart guard.
+
+Repository hygiene for the public push was checked with `git ls-files` and
+`git status --ignored`: the local SQLite database, Python/pytest caches, build
+output, `node_modules`, environment files, logs, and generated exports are not
+tracked. `.gitignore` covers those artifacts plus common local-secret and
+editor files, and `.dockerignore` keeps the local database, caches, frontend,
+tests, and docs out of the backend build context.
 
 What was **not** verified here:
 

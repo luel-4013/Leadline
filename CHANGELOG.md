@@ -25,7 +25,14 @@ target memory, and removing ways the tool could become a liability.
   evaluation, pagination, optional `NVD_API_KEY`, and a labeled keyword
   fallback when no CPE can be resolved.
 - `.env.example` and documented configuration for NVD and Host allow-listing.
-- Unit tests for scan diffing, version comparison, and CPE range matching.
+- Findings with severity, location, description, evidence, remediation, and
+  triage state in JSON, Markdown, HTML, and PDF exports.
+- Target-based export filenames (`<host>[_port]-scan-<id>.<ext>`), including
+  sanitized IPv4, IPv6, hostname, and loopback targets.
+- PDF confidentiality markings: a cover banner, a `CONFIDENTIAL` marker in
+  every footer, and a closing authorized-use disclosure.
+- Unit tests for scan diffing, version comparison, CPE range matching, export
+  filenames/content, and IPv6 filename sanitization.
 
 ### Changed
 - Renamed the project, package names, UI, database defaults, Docker setup, and
@@ -53,8 +60,18 @@ target memory, and removing ways the tool could become a liability.
   ESLint) and added a `typecheck` script.
 - Added a GitHub Actions workflow that runs the backend test suite and the
   frontend typecheck/build.
+- Expanded the test suite to 41 tests and documented the additional export,
+  PDF, confidentiality, and repository-hygiene checks.
 
 ### Fixed
+- Primary buttons were invisible because `.btn-primary` referenced
+  `--color-accent` variables that no theme defined. Both accent variables and
+  focus/disabled states are now defined for every theme.
+- PDF evidence boxes overlapped the preceding `Evidence` label. Evidence now
+  renders in a padded, wrapped table, and finding headings stay with their
+  description to avoid orphaned titles at page breaks.
+- Long values in PDF port, CVE, and phase tables could overflow; those tables
+  now wrap cell text. Report tables in the web UI scroll instead of clipping.
 - Stored XSS in exported HTML and Markdown reports: target-controlled values
   are escaped, CVE links are restricted to HTTPS, and HTML exports set a
   restrictive Content-Security-Policy.
