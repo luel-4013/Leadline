@@ -172,6 +172,7 @@ function Dashboard() {
       <div className="card">
         <h3 className="text-lg font-semibold mb-4">Recent Scans</h3>
         {scans && scans.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-sm">
@@ -203,6 +204,7 @@ function Dashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <p className="text-gray-500">No scans yet. Create a target and start a scan!</p>
         )}

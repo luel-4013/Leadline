@@ -39,6 +39,7 @@ export default function ReportsList() {
 
       <div className="card">
         {reportable.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-sm">
@@ -81,6 +82,7 @@ export default function ReportsList() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
             No reports yet -- reports appear here once a scan completes or is stopped.{' '}

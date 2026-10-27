@@ -36,6 +36,8 @@ def _seed_two_scans(target_id: int):
                     severity="low",
                     title="Missing Security Header: X-Frame-Options",
                     location="http://target.test/",
+                    evidence="Server: nginx/1.24.0",
+                    remediation="Add an X-Frame-Options or frame-ancestors policy.",
                 ),
                 Finding(
                     scan_id=first.id,
@@ -163,6 +165,41 @@ def test_history_diff_and_triage(client):
     ).json()
     assert reopened["triage_status"] == "open"
     assert reopened["is_false_positive"] is False
+
+    _delete_scans([first_id, second_id])
+    client.delete(f"/api/targets/{target_id}")
+
+
+def test_exports_are_named_after_target_and_include_findings(client):
+    created = client.post("/api/targets", json={
+        "name": "Export Format Test",
+        "url": "https://export.example:8443/app",
+    })
+    assert created.status_code == 201
+    target_id = created.json()["id"]
+    first_id, second_id = _seed_two_scans(target_id)
+    base = f"export.example_8443-scan-{first_id}"
+
+    json_export = client.get(f"/api/reports/{first_id}/export/json")
+    assert json_export.status_code == 200
+    assert f'filename="{base}.json"' in json_export.headers["content-disposition"]
+
+    markdown_export = client.get(f"/api/reports/{first_id}/export/markdown")
+    assert markdown_export.status_code == 200
+    assert f'filename="{base}.md"' in markdown_export.headers["content-disposition"]
+    assert "## Findings (2)" in markdown_export.text
+    assert "Server: nginx/1.24.0" in markdown_export.text
+
+    html_export = client.get(f"/api/reports/{first_id}/export/html")
+    assert html_export.status_code == 200
+    assert f'filename="{base}.html"' in html_export.headers["content-disposition"]
+    assert "Evidence" in html_export.text
+    assert "Server: nginx/1.24.0" in html_export.text
+
+    pdf_export = client.get(f"/api/reports/{first_id}/export/pdf")
+    assert pdf_export.status_code == 200
+    assert pdf_export.headers["content-type"] == "application/pdf"
+    assert f'filename="{base}.pdf"' in pdf_export.headers["content-disposition"]
 
     _delete_scans([first_id, second_id])
     client.delete(f"/api/targets/{target_id}")

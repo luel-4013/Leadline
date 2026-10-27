@@ -2,12 +2,30 @@
 
 These tests do not need network access or a database.
 """
+from app.api.reports import _export_filename
 from app.history import diff_snapshots
 from app.recon.cve_lookup import (
     CVELookupPhase,
     _compare_versions,
     _cpe_prefix,
 )
+
+
+def test_export_filename_uses_target_host_and_scan_id():
+    assert (
+        _export_filename("https://example.com:8443/app", 7, "pdf")
+        == "example.com_8443-scan-7.pdf"
+    )
+    assert (
+        _export_filename("192.168.1.10", 3, ".json")
+        == "192.168.1.10-scan-3.json"
+    )
+
+
+def test_export_filename_rejects_path_characters():
+    name = _export_filename("https://bad host/../../etc/passwd", 1, "html")
+    assert name == "bad-host-scan-1.html"
+    assert "/" not in name and "\\" not in name
 
 
 def _finding(key, title, severity="low", triage="open"):

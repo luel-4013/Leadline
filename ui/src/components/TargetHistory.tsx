@@ -440,7 +440,7 @@ export default function TargetHistory() {
               queryClient.invalidateQueries({ queryKey: ['target-history'] })
               queryClient.invalidateQueries({ queryKey: ['target-diff'] })
             }}
-            className="px-3 py-2 rounded-md border border-white/10 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2"
+            className="btn-secondary text-sm flex items-center gap-2"
           >
             <Clock className="w-4 h-4" /> Refresh
           </button>

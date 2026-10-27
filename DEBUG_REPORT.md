@@ -21,7 +21,7 @@ following areas:
 
 Checked in the development environment on 2026-10-27:
 
-- `python -m pytest -q`: **38 passed**.
+- `python -m pytest -q`: **41 passed**.
 - `pyflakes app tests`: clean.
 - `python -m compileall app tests`: clean.
 - `npm ci` from the committed lockfile: 141 packages installed.
@@ -33,6 +33,9 @@ Checked in the development environment on 2026-10-27:
   - all 12 phases emitted events and the scan finished `completed`;
   - report generation worked;
   - JSON, Markdown, HTML, and PDF exports worked;
+  - exports were named after the target (`<host>[_port]-scan-<id>.<ext>`);
+  - Markdown, HTML, and PDF exports listed findings with evidence and
+    remediation, and the PDF evidence boxes no longer overlap their labels;
   - the HTML export carried a restrictive CSP;
   - deleting a scan removed it from target history.
 

@@ -43,6 +43,7 @@ export default function TargetsList() {
 
       <div className="card">
         {targets && targets.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-sm">
@@ -99,6 +100,7 @@ export default function TargetsList() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
             No targets yet. Click "Add Target" to create one.

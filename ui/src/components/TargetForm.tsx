@@ -248,7 +248,7 @@ export default function TargetForm() {
           <button
             type="button"
             onClick={() => navigate('/targets')}
-            className="px-4 py-2 rounded-md border border-gray-600 hover:bg-gray-700"
+            className="btn-secondary"
           >
             Cancel
           </button>

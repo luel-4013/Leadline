@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Dict, Optional
 import json
+import re
 from html import escape as html_escape
+from urllib.parse import urlsplit
 
 from app.db import get_db
 from app.models import Scan, Target, ScanEvent, Finding, GraphNode
@@ -17,6 +19,50 @@ from app.pdf_export import generate_report_pdf
 from app.risk import compute_risk
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+_SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
+
+
+async def _load_findings(scan_id: int, db: AsyncSession) -> list:
+    """Load all findings for an export, most severe first."""
+    result = await db.execute(
+        select(Finding).where(Finding.scan_id == scan_id).order_by(Finding.id.asc())
+    )
+    findings = list(result.scalars().all())
+    findings.sort(
+        key=lambda f: _SEVERITY_ORDER.index(f.severity)
+        if f.severity in _SEVERITY_ORDER else len(_SEVERITY_ORDER)
+    )
+    return findings
+
+
+def _export_filename(target_url: str, scan_id: int, extension: str) -> str:
+    """Name exports after the target so downloaded files are self-describing.
+
+    ``example.com:8443`` becomes ``example.com_8443-scan-7.pdf``. The scan id
+    keeps repeat scans from overwriting each other, and every character is
+    reduced to a filesystem-safe set so a hostile target string cannot inject
+    a path or header value.
+    """
+    raw = (target_url or "").strip()
+    if raw and "://" not in raw:
+        raw = f"//{raw}"
+
+    try:
+        parsed = urlsplit(raw)
+        host = parsed.hostname or ""
+        port = parsed.port
+    except ValueError:
+        host, port = raw, None
+
+    label = host or raw or "target"
+    if port:
+        label = f"{label}_{port}"
+    # IPv6 colons are legal in a hostname but awkward in a filename.
+    label = label.replace(":", "_")
+    label = re.sub(r"[^A-Za-z0-9._-]+", "-", label)
+    label = re.sub(r"-{2,}", "-", label).strip("-._") or "target"
+    return f"{label}-scan-{scan_id}.{extension.lstrip('.')}"
 
 
 async def build_report_summary(scan_id: int, db: AsyncSession) -> ReportSummary:
@@ -241,7 +287,11 @@ async def export_json(scan_id: int, db: AsyncSession = Depends(get_db)):
     report = await get_report(scan_id, db)
     return JSONResponse(
         content=json.loads(report.model_dump_json()),
-        headers={"Content-Disposition": f"attachment; filename=report_{scan_id}.json"}
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{_export_filename(report.target_url, scan_id, "json")}"'
+            )
+        },
     )
 
 
@@ -261,6 +311,12 @@ def _md_text(value, limit: int = None) -> str:
     text = text.replace("|", "\\|").replace("[", "\\[").replace("]", "\\]")
     text = text.replace("<", "&lt;").replace(">", "&gt;")
     return " ".join(text.splitlines())
+
+
+def _md_block(value, limit: int = 2000) -> str:
+    """Escape evidence for a fenced code block while keeping line breaks."""
+    text = "" if value is None else str(value)[:limit]
+    return text.replace("```", "'''").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _md_url(value) -> str:
@@ -395,6 +451,31 @@ async def export_markdown(scan_id: int, db: AsyncSession = Depends(get_db)):
     if h.url_parameters:
         md += f"\n**URL/form parameters seen:** {_md_text(', '.join(h.url_parameters[:100]))}\n"
 
+    findings = await _load_findings(scan_id, db)
+    md += f"\n## Findings ({len(findings)})\n"
+    if not findings:
+        md += "\nNo findings were recorded for this scan.\n"
+    else:
+        for f in findings:
+            triage = f.triage_status or (
+                "false_positive" if f.is_false_positive else "open"
+            )
+            md += (
+                f"\n### [{_md_text((f.severity or 'info').upper(), 20)}] "
+                f"{_md_text(f.title, 300)}\n"
+                f"\n- **Type:** {_md_text(f.finding_type, 100)}\n"
+            )
+            if f.location:
+                md += f"- **Location:** `{_md_text(f.location, 500)}`\n"
+            if triage != "open":
+                md += f"- **Triage:** {_md_text(triage, 40)}\n"
+            if f.description:
+                md += f"\n**Description:** {_md_text(f.description, 2000)}\n"
+            if f.evidence:
+                md += f"\n**Evidence:**\n\n```text\n{_md_block(f.evidence)}\n```\n"
+            if f.remediation:
+                md += f"\n**Remediation:** {_md_text(f.remediation, 2000)}\n"
+
     md += "\n## Phases\n"
     for phase in report.phases:
         md += (
@@ -410,7 +491,11 @@ async def export_markdown(scan_id: int, db: AsyncSession = Depends(get_db)):
     return PlainTextResponse(
         content=md,
         media_type="text/markdown",
-        headers={"Content-Disposition": f"attachment; filename=report_{scan_id}.md"}
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{_export_filename(report.target_url, scan_id, "md")}"'
+            )
+        },
     )
 
 
@@ -460,6 +545,17 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
     th {{ background: #f9fafb; }}
     .endpoint {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }}
     .note {{ color: #92400e; background: #fef3c7; padding: 10px; border-radius: 6px; }}
+    .finding {{ border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; margin: 14px 0; page-break-inside: avoid; }}
+    .finding-head {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }}
+    .sev {{ display: inline-block; padding: 2px 7px; border-radius: 4px; color: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }}
+    .sev-critical {{ background: #dc2626; }}
+    .sev-high {{ background: #ea580c; }}
+    .sev-medium {{ background: #ca8a04; }}
+    .sev-low {{ background: #2563eb; }}
+    .sev-info {{ background: #6b7280; }}
+    .muted {{ color: #6b7280; font-size: 12px; }}
+    .evidence {{ white-space: pre-wrap; overflow-wrap: anywhere; background: #f9fafb; border-left: 3px solid #9ca3af; padding: 10px 12px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #1f2937; }}
+    .triage {{ background: #f3f4f6; color: #4b5563; padding: 2px 7px; border-radius: 4px; font-size: 11px; }}
 </style>
 </head>
 <body>
@@ -497,6 +593,11 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
         para("Technologies", ", ".join(h.technologies))
     if h.cdn_waf:
         para("CDN/WAF", ", ".join(h.cdn_waf))
+    if h.response_headers:
+        add("<h3>Response headers</h3>\n<pre class=\"evidence\">")
+        for key, value in h.response_headers.items():
+            add(f"{e(key)}: {e(value)}\n")
+        add("</pre>\n")
     if h.security_headers_present:
         para("Security headers present", ", ".join(h.security_headers_present))
     if h.security_headers_missing:
@@ -533,15 +634,18 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
         add("</table>\n")
 
     if h.cve_matches or h.cve_lookup_note:
-        add("<h3>CVE Candidates (unverified)</h3>\n")
+        add("<h3>CVE Correlations</h3>\n")
         if h.cve_lookup_note:
             add(f'<p class="note">{e(h.cve_lookup_note)}</p>\n')
         if h.cve_matches:
             add(
-                "<p>Verified rows matched a CPE version range. Unverified rows are "
-                "NVD keyword candidates and require manual confirmation.</p>\n"
+                "<p>Verified rows matched a CPE version range. Keyword-only rows are "
+                "NVD candidates and require manual confirmation.</p>\n"
             )
-            add("<table><tr><th>CVE</th><th>Severity</th><th>Score</th><th>Product</th><th>Links</th></tr>\n")
+            add(
+                "<table><tr><th>CVE</th><th>Severity</th><th>Score</th>"
+                "<th>Product</th><th>Applicability</th><th>Links</th></tr>\n"
+            )
             for c in h.cve_matches:
                 nvd = safe_https_url(c.get("nvd_url"))
                 exploit = safe_https_url(c.get("exploitdb_search_url"))
@@ -549,10 +653,13 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
                     f'<a href="{e(nvd)}" rel="noopener noreferrer">NVD</a> / '
                     f'<a href="{e(exploit)}" rel="noopener noreferrer">ExploitDB</a>'
                 )
+                applicability = (
+                    "CPE range" if c.get("applicability_verified") else "keyword only"
+                )
                 add(
                     f"<tr><td>{e(c.get('cve_id', ''))}</td><td>{e(c.get('cvss_severity', 'unscored'))}</td>"
                     f"<td>{e(c.get('cvss_score', '-'))}</td><td>{e(c.get('product', ''))} {e(c.get('version', ''))}</td>"
-                    f"<td>{links}</td></tr>\n"
+                    f"<td>{applicability}</td><td>{links}</td></tr>\n"
                 )
             add("</table>\n")
 
@@ -565,6 +672,42 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
         add("</ul>\n")
     if h.url_parameters:
         para("URL/form parameters seen", ", ".join(h.url_parameters[:100]))
+
+    findings = await _load_findings(scan_id, db)
+    add(f"<h2>Findings ({len(findings)})</h2>\n")
+    if not findings:
+        add("<p>No findings were recorded for this scan.</p>\n")
+    else:
+        for f in findings:
+            severity = (f.severity or "info").lower()
+            if severity not in ("critical", "high", "medium", "low"):
+                severity = "info"
+            triage = f.triage_status or (
+                "false_positive" if f.is_false_positive else "open"
+            )
+            triage_html = (
+                f'<span class="triage">{e(triage.replace("_", " "))}</span>'
+                if triage != "open" else ""
+            )
+            add('<div class="finding">\n')
+            add(
+                f'<div class="finding-head"><span class="sev sev-{severity}">'
+                f'{e(severity)}</span><strong>{e(f.title)}</strong>'
+                f'<span class="muted">{e((f.finding_type or "").replace("_", " "))}</span>'
+                f'{triage_html}</div>\n'
+            )
+            if f.location:
+                add(f'<div class="muted endpoint">{e(f.location)}</div>\n')
+            if f.description:
+                add(f"<p>{e(f.description)}</p>\n")
+            if f.evidence:
+                add(
+                    '<div class="muted"><strong>Evidence</strong></div>\n'
+                    f'<pre class="evidence">{e(f.evidence)}</pre>\n'
+                )
+            if f.remediation:
+                add(f"<p><strong>Remediation:</strong> {e(f.remediation)}</p>\n")
+            add("</div>\n")
 
     add("<h2>Phases</h2>\n<table><tr><th>Phase</th><th>Status</th><th>Findings</th></tr>\n")
     for phase in report.phases:
@@ -582,7 +725,9 @@ async def export_html(scan_id: int, db: AsyncSession = Depends(get_db)):
     return HTMLResponse(
         content="".join(parts),
         headers={
-            "Content-Disposition": f"attachment; filename=report_{scan_id}.html",
+            "Content-Disposition": (
+                f'attachment; filename="{_export_filename(report.target_url, scan_id, "html")}"'
+            ),
             # Defense in depth: nothing in a report needs to load or execute.
             "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
             "X-Content-Type-Options": "nosniff",
@@ -599,10 +744,7 @@ async def export_pdf(scan_id: int, db: AsyncSession = Depends(get_db)):
     # the individual findings -- fetch those directly so the PDF can list
     # each one (title, severity, evidence, remediation) rather than just
     # totals.
-    findings_result = await db.execute(
-        select(Finding).where(Finding.scan_id == scan_id)
-    )
-    findings = findings_result.scalars().all()
+    findings = await _load_findings(scan_id, db)
 
     pdf_bytes = generate_report_pdf(
         scan_id=report.scan_id,
@@ -623,6 +765,9 @@ async def export_pdf(scan_id: int, db: AsyncSession = Depends(get_db)):
                 "location": f.location,
                 "evidence": f.evidence,
                 "remediation": f.remediation,
+                "triage_status": f.triage_status or (
+                    "false_positive" if f.is_false_positive else "open"
+                ),
             }
             for f in findings
         ],
@@ -631,5 +776,9 @@ async def export_pdf(scan_id: int, db: AsyncSession = Depends(get_db)):
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=report_{scan_id}.pdf"}
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{_export_filename(report.target_url, scan_id, "pdf")}"'
+            )
+        },
     )

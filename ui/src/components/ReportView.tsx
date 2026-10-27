@@ -3,6 +3,16 @@ import { useQuery } from '@tanstack/react-query'
 import { Download, ChevronRight, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 
+function severityBadge(severity?: string) {
+  switch (severity) {
+    case 'critical': return 'bg-red-900/60 text-red-300'
+    case 'high': return 'bg-orange-900/60 text-orange-300'
+    case 'medium': return 'bg-yellow-900/60 text-yellow-300'
+    case 'low': return 'bg-blue-900/60 text-blue-300'
+    default: return 'bg-gray-700 text-gray-300'
+  }
+}
+
 export default function ReportView() {
   const { id } = useParams()
   const [expandedPhases, setExpandedPhases] = useState<number[]>([])
@@ -12,6 +22,15 @@ export default function ReportView() {
     queryFn: async () => {
       const res = await fetch(`/api/reports/${id}`)
       if (!res.ok) throw new Error('Report not found')
+      return res.json()
+    },
+  })
+
+  const { data: findings } = useQuery({
+    queryKey: ['report-findings', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/findings?scan_id=${id}`)
+      if (!res.ok) throw new Error('Failed to load findings')
       return res.json()
     },
   })
@@ -27,19 +46,46 @@ export default function ReportView() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Report - Scan #{id}</h2>
-        <div className="flex gap-2">
-          <a href={`/api/reports/${id}/export/json`} download className="btn-primary flex items-center gap-2">
+      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold">Report</h2>
+          <p className="text-sm text-gray-400 mt-1 break-all">
+            {report.target_name}
+            <span className="text-gray-500 font-mono"> · {report.target_url}</span>
+            <span className="text-gray-500"> · Scan #{id}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/api/reports/${id}/export/json`}
+            download
+            className="btn-primary flex items-center gap-2"
+            title="Download JSON"
+          >
             <Download className="w-4 h-4" /> JSON
           </a>
-          <a href={`/api/reports/${id}/export/pdf`} download className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
+          <a
+            href={`/api/reports/${id}/export/pdf`}
+            download
+            className="btn-danger flex items-center gap-2"
+            title="Download PDF"
+          >
             <Download className="w-4 h-4" /> PDF
           </a>
-          <a href={`/api/reports/${id}/export/markdown`} download className="px-4 py-2 rounded-md border border-gray-600 hover:bg-gray-700 flex items-center gap-2">
+          <a
+            href={`/api/reports/${id}/export/markdown`}
+            download
+            className="btn-secondary flex items-center gap-2"
+            title="Download Markdown"
+          >
             <Download className="w-4 h-4" /> Markdown
           </a>
-          <a href={`/api/reports/${id}/export/html`} download className="px-4 py-2 rounded-md border border-gray-600 hover:bg-gray-700 flex items-center gap-2">
+          <a
+            href={`/api/reports/${id}/export/html`}
+            download
+            className="btn-secondary flex items-center gap-2"
+            title="Download HTML"
+          >
             <Download className="w-4 h-4" /> HTML
           </a>
         </div>
@@ -70,7 +116,7 @@ export default function ReportView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-8">
         <SummaryCard label="Endpoints" value={report.summary.total_endpoints} />
         <SummaryCard label="API Routes" value={report.summary.api_routes} />
         <SummaryCard label="Auth" value={report.summary.authentication_mechanisms} />
@@ -88,14 +134,14 @@ export default function ReportView() {
       {/* Target Info */}
       <div className="card mb-8">
         <h3 className="text-lg font-semibold mb-4">Target Information</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="min-w-0">
             <span className="text-gray-400 text-sm">Name:</span>
-            <p className="font-medium">{report.target_name}</p>
+            <p className="font-medium break-words">{report.target_name}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="text-gray-400 text-sm">URL:</span>
-            <p className="font-medium text-blue-400">{report.target_url}</p>
+            <p className="font-medium text-signal font-mono break-all">{report.target_url}</p>
           </div>
           <div>
             <span className="text-gray-400 text-sm">Status:</span>
@@ -324,6 +370,68 @@ export default function ReportView() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Findings */}
+      <div className="card mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 className="text-lg font-semibold">Findings ({findings?.length ?? 0})</h3>
+          <span className="text-xs text-gray-500">
+            Findings marked false positive are excluded from the risk score.
+          </span>
+        </div>
+        {!findings ? (
+          <p className="text-sm text-gray-400">Loading findings...</p>
+        ) : findings.length === 0 ? (
+          <p className="text-sm text-gray-400">No findings were recorded for this scan.</p>
+        ) : (
+          <div>
+            {findings.map((finding: any) => {
+              const status = finding.triage_status || 'open'
+              return (
+                <div key={finding.id} className="border-b border-white/5 last:border-0 py-4 first:pt-0">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${severityBadge(finding.severity)}`}>
+                        {finding.severity || 'info'}
+                      </span>
+                      <span className="font-medium break-words">{finding.title}</span>
+                      {status !== 'open' && (
+                        <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                          status === 'false_positive'
+                            ? 'bg-gray-700 text-gray-400'
+                            : 'bg-emerald-900/50 text-emerald-300'
+                        }`}>
+                          {status.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-gray-500">
+                      {String(finding.type || '').replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  {finding.location && (
+                    <div className="text-xs font-mono text-gray-400 mt-1 break-all">{finding.location}</div>
+                  )}
+                  {finding.description && (
+                    <p className="text-sm text-gray-300 mt-2 whitespace-pre-wrap break-words">{finding.description}</p>
+                  )}
+                  {finding.evidence && (
+                    <div className="mt-3">
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Evidence</div>
+                      <pre className="text-xs text-gray-300 bg-void-800 border border-white/10 rounded-md p-3 whitespace-pre-wrap break-words max-h-56 overflow-y-auto">{finding.evidence}</pre>
+                    </div>
+                  )}
+                  {finding.remediation && (
+                    <p className="text-sm text-gray-300 mt-3">
+                      <span className="text-gray-500">Remediation:</span> {finding.remediation}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
