@@ -56,10 +56,12 @@ def _export_filename(target_url: str, scan_id: int, extension: str) -> str:
         host, port = raw, None
 
     label = host or raw or "target"
+    # IPv6 colons are legal in a hostname but awkward in a filename. Mark the
+    # address so ``[::1]`` does not collapse into a bare ``1`` after cleanup.
+    if ":" in label:
+        label = f"ipv6-{label.replace(':', '-')}"
     if port:
         label = f"{label}_{port}"
-    # IPv6 colons are legal in a hostname but awkward in a filename.
-    label = label.replace(":", "_")
     label = re.sub(r"[^A-Za-z0-9._-]+", "-", label)
     label = re.sub(r"-{2,}", "-", label).strip("-._") or "target"
     return f"{label}-scan-{scan_id}.{extension.lstrip('.')}"

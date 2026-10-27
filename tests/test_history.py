@@ -20,6 +20,10 @@ def test_export_filename_uses_target_host_and_scan_id():
         _export_filename("192.168.1.10", 3, ".json")
         == "192.168.1.10-scan-3.json"
     )
+    assert (
+        _export_filename("http://[::1]:8080/admin", 4, "pdf")
+        == "ipv6-1_8080-scan-4.pdf"
+    )
 
 
 def test_export_filename_rejects_path_characters():
