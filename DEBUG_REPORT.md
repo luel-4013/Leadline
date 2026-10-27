@@ -36,6 +36,8 @@ Checked in the development environment on 2026-10-27:
   - exports were named after the target (`<host>[_port]-scan-<id>.<ext>`);
   - Markdown, HTML, and PDF exports listed findings with evidence and
     remediation, and the PDF evidence boxes no longer overlap their labels;
+  - PDF exports carry a cover confidentiality banner, a `CONFIDENTIAL` marker
+    in every footer, and a closing authorized-use disclosure;
   - the HTML export carried a restrictive CSP;
   - deleting a scan removed it from target history.
 
