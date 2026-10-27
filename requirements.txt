@@ -1,0 +1,31 @@
+# Leadline - Backend Dependencies
+
+# Core framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+aiosqlite==0.19.0
+
+# Validation and settings (.env is loaded by pydantic-settings)
+pydantic>=2.10
+pydantic-settings==2.1.0
+
+# HTTP client
+aiohttp>=3.9,<4
+
+# Graph processing
+networkx==3.2.1
+
+# DNS and TLS inspection
+dnspython==2.5.0
+cryptography>=42.0.5
+
+# Report export
+reportlab==4.4.10
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
