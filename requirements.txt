@@ -19,7 +19,7 @@ aiohttp>=3.9,<4
 networkx==3.2.1
 
 # DNS and TLS inspection
-dnspython==2.5.0
+dnspython==2.9.2
 cryptography>=42.0.5
 
 # Report export
